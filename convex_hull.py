@@ -23,20 +23,20 @@ PAUSE = 0.25
 class Node:
     def __init__(self, point, next_node=None, prev_node=None):
         self.point = point
-        self.next_node = next_node
-        self.prev_node = prev_node
+        self.next = next_node
+        self.prev = prev_node
 
     def set_next_node(self, next_node):
-        self.next_node = next_node
+        self.next = next_node
 
     def get_next_node(self):
-        return self.next_node
+        return self.next
 
     def set_prev_node(self, prev_node):
-        self.prev_node = prev_node
+        self.prev = prev_node
 
     def get_prev_node(self):
-        return self.prev_node
+        return self.prev
 
     def get_point(self):
         return self.point
@@ -76,12 +76,12 @@ class DoublyLinkedList:
     def remove_head(self):
         removed_head = self.head_node
 
-        if removed_head == None:
+        if removed_head is None:
             return None
 
         self.head_node = removed_head.get_next_node()
 
-        if self.head_node != None:
+        if self.head_node is not None:
             self.head_node.set_prev_node(None)
 
         if removed_head == self.tail_node:
@@ -168,11 +168,23 @@ class ConvexHullSolver(QObject):
     def showText(self, text):
         self.view.displayStatusText(text)
 
-    def convex_solver(self, points):
+    # Find slope of line between two points
+    def findSlope(self, point_one, point_two):
+        return (point_one.y - point_two.y) / (point_one.x - point_two.x)
+
+    def divide_points(self, points):
+        print("here")
         if len(points) == 1:
+            print(points)
             return points
-        left_half = self.convex_solver(points[0: len(points) / 2])
-        right_half = self.convex_solver(points[len(points) / 2:])
+        left_half = self.divide_points(points[0: len(points) // 2])
+        right_half = self.divide_points(points[len(points) // 2:])
+        print(left_half)
+        return self.merge_hulls(left_half, right_half)
+
+    def merge_hulls(self, left, right):
+        print(left, right)
+        return left
 
     # This is the method that gets called by the GUI and actually executes
     # the finding of the hull
@@ -180,16 +192,15 @@ class ConvexHullSolver(QObject):
         self.pause = pause
         self.view = view
         assert (type(points) == list and type(points[0]) == QPointF)
-
         t1 = time.time()
         # TODO: SORT THE POINTS BY INCREASING X-VALUE
-        points.sort(key=lambda point: point.x)
+        points = sorted([(p.x(), p.y()) for p in points])
         t2 = time.time()
 
         t3 = time.time()
         # this is a dummy polygon of the first 3 unsorted points
-
-        polygon = [QLineF(points[i], points[(i + 1) % 3]) for i in range(3)]
+        # polygon = [QLineF(points[i], points[(i + 1) % 3]) for i in range(3)]
+        polygon = self.divide_points(points)
         # TODO: REPLACE THE LINE ABOVE WITH A CALL TO YOUR DIVIDE-AND-CONQUER CONVEX HULL SOLVER
         # split array in half
         # build doubly linked list
