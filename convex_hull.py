@@ -23,11 +23,42 @@ PAUSE = 0.25
 #
 # This is the class you have to complete.
 #
-def orientation(p, q, r):
-    val = (q.y - p.y) * (r.x - q.x) - (q.x - p.x) * (r.y - q.y)
-    if val == 0:
-        return 0
-    return 1 if val > 0 else 2
+def find_slope(a, b):
+    return (a.y - b.y) / (a.x - b.x)
+
+
+def cross_product(a, b, c):
+    return (b.y - a.y) * (c.x - b.x) - (b.x - a.x) * (c.y - b.y)
+
+
+# Use point object to contain both the point coords and the linked list structure
+class Point:
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+        self.next = None
+        self.prev = None
+
+
+def divide_convex(points):
+    if len(points) <= 3:
+        return points
+    points.sort(key=lambda p: (p.x, p.y))
+    mid = len(points) // 2
+    left_hull = divide_convex(points[0: mid])
+    right_hull = divide_convex(points[mid:])
+
+    return merge(left_hull, right_hull)
+
+
+def merge(left_hull, right_hull):
+    left_point = left_hull[-1]
+    right_point = right_hull[0]
+    i = 0
+    upper = None
+    lower = None
+    for i in range(len(left_hull) - 1, -1, -1):
+    return left_hull + right_hull
 
 
 class ConvexHullSolver(QObject):
@@ -63,20 +94,15 @@ class ConvexHullSolver(QObject):
     def showText(self, text):
         self.view.displayStatusText(text)
 
-    class Point:
-        def __init__(self, x, y):
-            self.x = x
-            self.y = y
-            self.next = None
-            self.prev = None
-
     def convex_hull(self, points):
+        # Stop once we get to 3 points
         if len(points) <= 3:
             return points
         points.sort(key=lambda p: (p.x, p.y))
 
         # Initialize the doubly linked list
         head = points[0]
+        # -1 to get last entry in list
         tail = points[-1]
         head.next = tail
         tail.prev = head
@@ -84,7 +110,7 @@ class ConvexHullSolver(QObject):
         upper_hull = [head, points[1]]
 
         for i in range(2, len(points)):
-            while len(upper_hull) > 1 and orientation(upper_hull[-2], upper_hull[-1], points[i]) != 2:
+            while len(upper_hull) > 1 and cross_product(upper_hull[-2], upper_hull[-1], points[i]) != 2:
                 upper_hull.pop()
             upper_hull[-1].next = points[i]
             points[i].prev = upper_hull[-1]
@@ -93,7 +119,7 @@ class ConvexHullSolver(QObject):
         lower_hull = [tail, points[-2]]
 
         for i in range(len(points) - 3, -1, -1):
-            while len(lower_hull) > 1 and orientation(lower_hull[-2], lower_hull[-1], points[i]) != 2:
+            while len(lower_hull) > 1 and cross_product(lower_hull[-2], lower_hull[-1], points[i]) != 2:
                 lower_hull.pop()
             lower_hull[-1].next = points[i]
             points[i].prev = lower_hull[-1]
@@ -119,8 +145,9 @@ class ConvexHullSolver(QObject):
         # this is a dummy polygon of the first 3 unsorted points
         converted_points = []
         for point in points:
-            converted_points.append(self.Point(point[0], point[1]))
-        hull = self.convex_hull(converted_points)
+            converted_points.append(Point(point[0], point[1]))
+        # hull = self.convex_hull(converted_points)
+        hull = divide_convex(converted_points)
         polygon = [QLineF(QPointF(hull[i].x, hull[i].y),
                           QPointF(hull[(i + 1) % len(hull)].x, hull[(i + 1) % len(hull)].y)) for i in range(len(hull))]
         # TODO: REPLACE THE LINE ABOVE WITH A CALL TO YOUR DIVIDE-AND-CONQUER CONVEX HULL SOLVER
