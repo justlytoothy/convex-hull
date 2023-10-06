@@ -24,58 +24,109 @@ PAUSE = 0.25
 # This is the class you have to complete.
 #
 def find_slope(a, b):
-    return (a.y - b.y) / (a.x - b.x)
+    return (a[1] - b[1]) / (a[0] - b[0])
 
 
-# Use point object to contain both the point coords and the linked list structure
-class Point:
-    def __init__(self, x, y):
-        self.x = x
-        self.y = y
-        self.next = None
-        self.prev = None
-
-
-class DoublyLinkedList:
-    def __init__(self):
-        self.head = None
-
-    def append(self, point):
-        if not self.head:
-            self.head = point
-            point.next = point
-            point.prev = point
+def get_next_index(i, n, direction):
+    if direction > 0:  # counter-clockwise
+        if i == n - 1:
+            return 0
         else:
-            tail = self.head.prev
-            tail.next = point
-            point.prev = tail
-            point.next = self.head
-            self.head.prev = point
-
-    def get_rightmost(self):
-        return self.head.prev
-
-    def get_leftmost(self):
-        return self.head
-
-
-def orientation(p, q, r):
-    val = (q.y - p.y) * (r.x - q.x) - (q.x - p.x) * (r.y - q.y)
-    if val == 0:
-        return 0  # Collinear
-    return 1 if val > 0 else 2  # Clockwise or Counterclockwise
+            return i + 1
+    else:  # clockwise
+        if i == 0:
+            return n - 1
+        else:
+            return i - 1
 
 
 def merge_hulls(left_hull, right_hull):
-    pass
+    maxEl = left_hull[-1][0]
+    maxIndex = len(left_hull) - 1
+    for i in range(len(left_hull)):
+        if left_hull[i][0] > maxEl:
+            maxEl = left_hull[i][0]
+            maxIndex = i
+    minEl = right_hull[0][0]
+    minIndex = 0
+    for i in range(len(right_hull)):
+        if right_hull[i][0] < minEl:
+            minEl = right_hull[i][0]
+            minIndex = i
+
+    merged_hull = []
+    left_point = left_hull[maxIndex]
+    right_point = right_hull[minIndex]
+    left_point_lower = left_hull[maxIndex]
+    right_point_lower = right_hull[minIndex]
+    left_index = maxIndex
+    right_index = minIndex
+    left_index_lower = maxIndex
+    right_index_lower = minIndex
+    curr_slope = find_slope(left_point, right_point)
+    changed = True
+    left_stopped = get_next_index(maxIndex, len(left_hull), 1)
+    right_stopped = get_next_index(minIndex, len(right_hull), -1)
+    while changed is True:
+        changed = False
+        i = left_stopped
+        while find_slope(left_hull[i], right_point) < curr_slope:
+            changed = True
+            left_point = left_hull[i]
+            curr_slope = find_slope(left_point, right_point)
+            left_index = i
+            i = get_next_index(i, len(left_hull), 1)
+        left_stopped = i
+        i = right_stopped
+        while find_slope(left_point, right_hull[i]) > curr_slope:
+            changed = True
+            right_point = right_hull[i]
+            curr_slope = find_slope(left_point, right_point)
+            right_index = i
+            i = get_next_index(i, len(right_hull), -1)
+        right_stopped = i
+
+    curr_slope = find_slope(left_point_lower, right_point_lower)
+
+    changed = True
+    left_stopped = get_next_index(maxIndex, len(left_hull), -1)
+    right_stopped = get_next_index(minIndex, len(right_hull), 1)
+    while changed is True:
+        changed = False
+        i = left_stopped
+        while find_slope(left_hull[i], right_point_lower) > curr_slope:
+            changed = True
+            left_point_lower = left_hull[i]
+            curr_slope = find_slope(left_point_lower, right_point_lower)
+            left_index_lower = i
+            i = get_next_index(i, len(left_hull), -1)
+        left_stopped = i
+        i = right_stopped
+        while find_slope(left_point_lower, right_hull[i]) < curr_slope:
+            changed = True
+            right_point_lower = right_hull[i]
+            curr_slope = find_slope(left_point_lower, right_point_lower)
+            right_index_lower = i
+            i = get_next_index(i, len(right_hull), 1)
+        right_stopped = i
+    i = left_index
+
+    while i != left_index_lower:
+        merged_hull.append(left_hull[i])
+        i = get_next_index(i, len(left_hull), 1)
+    merged_hull.append(left_hull[i])
+    i = right_index_lower
+    while i != right_index:
+        merged_hull.append(right_hull[i])
+        i = get_next_index(i, len(right_hull), 1)
+    merged_hull.append(right_hull[i])
+    return merged_hull
 
 
+# O(logn)
 def convex_solver(points):
     if len(points) <= 2:
-        dub_list = DoublyLinkedList()
-        for point in points:
-            dub_list.append(point)
-        return dub_list
+        return points
     mid = len(points) // 2
     left_hull = convex_solver(points[:mid])
     right_hull = convex_solver(points[mid:])
@@ -127,22 +178,10 @@ class ConvexHullSolver(QObject):
         t2 = time.time()
 
         t3 = time.time()
-        # this is a dummy polygon of the first 3 unsorted points
-        converted_points = []
-        for point in points:
-            converted_points.append(Point(point[0], point[1]))
-        # hull = self.convex_hull(converted_points)
-        hull = convex_solver(converted_points)
-        curr = hull.head
-        hull_list = []
-        while True:
-            hull_list.append(curr)
-            curr = curr.next
-            if curr == hull.head:
-                break
-        polygon = [QLineF(QPointF(hull_list[i].x, hull_list[i].y),
-                          QPointF(hull_list[(i + 1) % len(hull_list)].x,
-                                  hull_list[(i + 1) % len(hull_list)].y)) for i in range(len(hull_list))]
+        hull = convex_solver(points)
+        polygon = [QLineF(QPointF(hull[i][0], hull[i][1]),
+                          QPointF(hull[(i + 1) % len(hull)][0],
+                                  hull[(i + 1) % len(hull)][1])) for i in range(len(hull))]
         # TODO: REPLACE THE LINE ABOVE WITH A CALL TO YOUR DIVIDE-AND-CONQUER CONVEX HULL SOLVER
         # split array in half
         # build doubly linked list
