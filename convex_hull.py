@@ -27,10 +27,6 @@ def find_slope(a, b):
     return (a.y - b.y) / (a.x - b.x)
 
 
-def cross_product(a, b, c):
-    return (b.y - a.y) * (c.x - b.x) - (b.x - a.x) * (c.y - b.y)
-
-
 # Use point object to contain both the point coords and the linked list structure
 class Point:
     def __init__(self, x, y):
@@ -40,25 +36,50 @@ class Point:
         self.prev = None
 
 
-def divide_convex(points):
-    if len(points) <= 3:
-        return points
-    points.sort(key=lambda p: (p.x, p.y))
+class DoublyLinkedList:
+    def __init__(self):
+        self.head = None
+
+    def append(self, point):
+        if not self.head:
+            self.head = point
+            point.next = point
+            point.prev = point
+        else:
+            tail = self.head.prev
+            tail.next = point
+            point.prev = tail
+            point.next = self.head
+            self.head.prev = point
+
+    def get_rightmost(self):
+        return self.head.prev
+
+    def get_leftmost(self):
+        return self.head
+
+
+def orientation(p, q, r):
+    val = (q.y - p.y) * (r.x - q.x) - (q.x - p.x) * (r.y - q.y)
+    if val == 0:
+        return 0  # Collinear
+    return 1 if val > 0 else 2  # Clockwise or Counterclockwise
+
+
+def merge_hulls(left_hull, right_hull):
+    pass
+
+
+def convex_solver(points):
+    if len(points) <= 2:
+        dub_list = DoublyLinkedList()
+        for point in points:
+            dub_list.append(point)
+        return dub_list
     mid = len(points) // 2
-    left_hull = divide_convex(points[0: mid])
-    right_hull = divide_convex(points[mid:])
-
-    return merge(left_hull, right_hull)
-
-
-def merge(left_hull, right_hull):
-    left_point = left_hull[-1]
-    right_point = right_hull[0]
-    i = 0
-    upper = None
-    lower = None
-    for i in range(len(left_hull) - 1, -1, -1):
-    return left_hull + right_hull
+    left_hull = convex_solver(points[:mid])
+    right_hull = convex_solver(points[mid:])
+    return merge_hulls(left_hull, right_hull)
 
 
 class ConvexHullSolver(QObject):
@@ -94,42 +115,6 @@ class ConvexHullSolver(QObject):
     def showText(self, text):
         self.view.displayStatusText(text)
 
-    def convex_hull(self, points):
-        # Stop once we get to 3 points
-        if len(points) <= 3:
-            return points
-        points.sort(key=lambda p: (p.x, p.y))
-
-        # Initialize the doubly linked list
-        head = points[0]
-        # -1 to get last entry in list
-        tail = points[-1]
-        head.next = tail
-        tail.prev = head
-
-        upper_hull = [head, points[1]]
-
-        for i in range(2, len(points)):
-            while len(upper_hull) > 1 and cross_product(upper_hull[-2], upper_hull[-1], points[i]) != 2:
-                upper_hull.pop()
-            upper_hull[-1].next = points[i]
-            points[i].prev = upper_hull[-1]
-            upper_hull.append(points[i])
-
-        lower_hull = [tail, points[-2]]
-
-        for i in range(len(points) - 3, -1, -1):
-            while len(lower_hull) > 1 and cross_product(lower_hull[-2], lower_hull[-1], points[i]) != 2:
-                lower_hull.pop()
-            lower_hull[-1].next = points[i]
-            points[i].prev = lower_hull[-1]
-            lower_hull.append(points[i])
-
-        upper_hull[-1].next = lower_hull[0]
-        lower_hull[0].prev = upper_hull[-1]
-
-        return upper_hull + lower_hull
-
     # This is the method that gets called by the GUI and actually executes
     # the finding of the hull
     def compute_hull(self, points, pause, view):
@@ -147,9 +132,17 @@ class ConvexHullSolver(QObject):
         for point in points:
             converted_points.append(Point(point[0], point[1]))
         # hull = self.convex_hull(converted_points)
-        hull = divide_convex(converted_points)
-        polygon = [QLineF(QPointF(hull[i].x, hull[i].y),
-                          QPointF(hull[(i + 1) % len(hull)].x, hull[(i + 1) % len(hull)].y)) for i in range(len(hull))]
+        hull = convex_solver(converted_points)
+        curr = hull.head
+        hull_list = []
+        while True:
+            hull_list.append(curr)
+            curr = curr.next
+            if curr == hull.head:
+                break
+        polygon = [QLineF(QPointF(hull_list[i].x, hull_list[i].y),
+                          QPointF(hull_list[(i + 1) % len(hull_list)].x,
+                                  hull_list[(i + 1) % len(hull_list)].y)) for i in range(len(hull_list))]
         # TODO: REPLACE THE LINE ABOVE WITH A CALL TO YOUR DIVIDE-AND-CONQUER CONVEX HULL SOLVER
         # split array in half
         # build doubly linked list
